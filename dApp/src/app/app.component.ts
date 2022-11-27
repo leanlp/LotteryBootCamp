@@ -3,17 +3,23 @@ import { BigNumber, Contract, ethers, Wallet } from 'ethers';
 import { Injectable } from '@angular/core';
 import { providers } from 'ethers' // providers.BaseProvider
 import { environment } from '../environments/environment'
-import tokenJson from '../assets/MyOtherToken.json';
+import tokenJson from '../assets/Lottery.json';
 
 
-import { formatEther, getAddress } from 'ethers/lib/utils';
+import { formatEther, getAddress, parseEther } from 'ethers/lib/utils';
 import { HttpClient } from '@angular/common/http';
+import { JsonRpcSigner } from '@ethersproject/providers';
 
 // import *as dotenv from "dotenv";
 // dotenv.config()
 
-// const ERC20VOTES = "0x3A4a8459f38e131fa5071a3E0444E64313F7343E"
 
+
+declare global {
+  interface Window {
+    ethereum: ethers.providers.ExternalProvider;
+  }
+}
 
 @Component({
   selector: 'app-root',
@@ -25,83 +31,134 @@ export class AppComponent {
   
   tokenContractAddress: string | undefined;
 
-  wallet: ethers.Wallet | undefined
-  provider: ethers.providers.BaseProvider | undefined
+  wallet: ethers.Wallet | undefined | any
+  provider: ethers.providers.Web3Provider | undefined
   etherBalance: number | undefined
   tokenBalance: number | undefined
   votePower: number | undefined
   tokenContract: ethers.Contract | undefined
   window: any;
-  
+  LOTTERYCONTRACT2 =  "0xFC892E2Bb534724613C4444d1D901A728f1eA516" 
+  LOTTERYCONTRACT = "0x31fa755fa054cbbbe1cd7d5a312d11c95acb0b69"
+  betsClosingTime: number | undefined
+  betFee: number | undefined
+  getRandomNumber: number | any
+  betPrice: any;
+  betsOpen: any
+  maxPurchaseAmount: number | undefined;
+  purchaseRatio: number | undefined;
  
 
   constructor(private http: HttpClient,){}
 
-createWallet() {
-// this.provider = new ethers.providers.Web3Provider(this.window.ethereum)
-  this.provider = new ethers.providers.InfuraProvider("goerli", { infura: ['INFURA_API_KEY'] })
-  this.wallet = ethers.Wallet.createRandom().connect(this.provider);
-  this.http
-    .get<any>("http://localhost:3000/token-address")
-    .subscribe((ans) => {
-     this.tokenContractAddress = ans.result;
+async getInfo() {
+this.provider = new ethers.providers.Web3Provider(window.ethereum)
+const signer = this.provider.getSigner()
+// this.wallet = await signer.getAddress()
+this.wallet = await this.provider.send("eth_requestAccounts", [])
+// console.log("hey")
+ // this.provider = new ethers.providers.InfuraProvider("goerli", { infura: ['INFURA_API_KEY'] })
+  // this.wallet = ethers.Wallet.createRandom().connect(this.provider);
+  // this.http
+ 
+     this.tokenContractAddress = this.LOTTERYCONTRACT; // this, remember put const = up the page
     if (this.tokenContractAddress && this.wallet) {
     this.tokenContract = new ethers.Contract(
-    this.tokenContractAddress,
+    this.LOTTERYCONTRACT,
     tokenJson.abi,
-    this.wallet 
+    signer
     );
-  
-  this.wallet.getBalance().then((balanceBn) => {
-    this.etherBalance = parseFloat(ethers.utils.formatEther(balanceBn))
-  });
 
-  this.tokenContract["balanceOf"](this.wallet.address).then(
-    (tokenBalanceBn: BigNumber) => {
-    this.tokenBalance = parseFloat(
-      ethers.utils.formatEther(tokenBalanceBn)
-      );
-  });
-  this.tokenContract["getVotes"](this.wallet.address).then(
-    (votePowerBn: BigNumber) => {
-    this.votePower = parseFloat(ethers.utils.formatEther(votePowerBn)
-    );
-    }
-    );
-    }
+    this.tokenContract = this.tokenContract.attach(this.LOTTERYCONTRACT).connect(signer)
+  
+    signer.getBalance().then((balanceBn: ethers.BigNumberish) => {
+      this.etherBalance = parseFloat(ethers.utils.formatEther(balanceBn))
+      // console.log(this.etherBalance)
+    });
+
+  this.tokenContract["betFee"](signer._address).then((betFee: string) => {
+    this.betFee = parseFloat(betFee)});
+      console.log(`betFee${this.betFee}`)
+  
+      this.tokenContract["betPrice"](signer._address).then((betPrice: string) => {
+        this.betPrice = parseFloat(betPrice)});
+        console.log(`betPrice${this.betPrice}`)
+
+
+  this.tokenContract["betsClosingTime"](signer._address).then((betsClosingTime: number) => {
+    this.betsClosingTime = ((betsClosingTime));
+    console.log(`betFee${this.betsClosingTime}`)
+    });
+    
+
+    this.tokenContract["betsOpen"](signer._address).then((betsOpen: string) => {
+      this.betsOpen = ((betsOpen));
+      console.log(`betsOpen${this.betsOpen}`)
+      });
+
+  this.tokenContract["getRandomNumber"](signer._address).then((getRandomNumber: ethers.BigNumberish) => {
+      this.getRandomNumber = (getRandomNumber)
     })
-  }
+         console.log(`betFee${this.getRandomNumber}`)
+    }
   
- 
 
+  
+  
+    
 
-//   async connectWallet() {
-//     ethereum.request({ method: 'eth_requestAccounts' });     
-// // A Web3Provider wraps a standard Web3 provider, which is
-// // // what MetaMask injects as window.ethereum into each page
-// // const MetaMaskprovider = new ethers.providers.Web3Provider(window.ethereum)
-// // // MetaMask requires requesting permission to connect users accounts
-// // await MetaMaskprovider.send("eth_requestAccounts", []);
-// // // The MetaMask plugin also allows signing transactions to
-// // // send ether and pay to change state within the blockchain.
-// // // For this, you need the account signer...
-// //   const signer = MetaMaskprovider.getSigner();
-// //   this.MMaddress = await signer._address
-// //   console.log(this.MMaddress);
 //   }
+// }
+  
+    }
+// async getR(value: string){
+//   this.tokenContract?["getRandomNumber"]()
+// } 
+
+  async connectWallet() {
+
+    const MetaMaskprovider = new ethers.providers.Web3Provider(window.ethereum)
+
+await MetaMaskprovider.send("eth_requestAccounts", []);
+  
+const signer = MetaMaskprovider.getSigner();
+  await signer.getAddress().then((address) => {
+  // console.log(signer.getBalance(), "11111")
+    
+    const accounts = address
+    console.log(address, accounts, signer);
+  
+  } )
+  // console.log(parseFloat(
+  //   ethers.utils.formatEther(await signer.getBalance())))
+  }
 
 
-  vote(voteId: string){
-    console.log("try to vote" + voteId)
-    // this.ballotContract["vote"](voteId)
-  }
-  request() {
+  // vote(voteId: string){
+  //   console.log("try to vote" + voteId)
+  //   // this.ballotContract["vote"](voteId)
+  // }
+  // request() {
     
-    this.http
-    .post<any>("http://localhost:3000/request-tokens", {
-      address: this.wallet?.address,})
-    .subscribe((ans) => {console.log(ans)});
+  //   this.http
+  //   .post<any>("http://localhost:3000/request-tokens", {
+  //     address: this.wallet?.address,})
+  //   .subscribe((ans) => {console.log(ans)});
     
     
-  }
+  // }
+
+  async purchaseTokens(tokensToMint: string) {
+    this.wallet?.getBalance().then((balanceBn: ethers.BigNumberish) => {
+      this.etherBalance = parseFloat(ethers.utils.formatEther(balanceBn))
+    })
+    if(this.wallet && this.purchaseRatio && this.etherBalance) {
+    const etherToRequest = parseFloat(tokensToMint) / this.purchaseRatio
+    console.log(etherToRequest)
+    console.log(this.maxPurchaseAmount)
+    this.tokenContract = new ethers.Contract(this.LOTTERYCONTRACT, tokenJson.abi, this.provider);
+    this.tokenContract.connect(this.wallet)['purchaseTokens']({ value: ethers.utils.parseEther(String(etherToRequest)) });}
+
+}
+
 }

@@ -31,7 +31,7 @@
     "test": "test"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^4.7.3",
+    "@openzeppelin/contracts": "^4.5.0",
     "abbrev": "^1.0.9",
     "abort-controller": "^3.0.0",
     "abstract-level": "^1.0.3",
